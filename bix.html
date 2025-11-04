@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Mô phỏng Con Lắc Đơn 2D</title>
+<link rel="stylesheet" href="ctr5.css">
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    
+    margin: 0;
+    text-align: center;
+  }
+  h1 {
+    margin: 15px 0;
+    color: #222;
+  }
+  #container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin-top: 10px;
+  }
+  #pageTitle {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      color: #ffeb3b;
+      text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+      margin-bottom: 25px;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+  canvas {
+    border: 1px solid #555;
+    background: #fff;
+    margin: 10px;
+  }
+  #controls {
+    margin: 15px 0;
+  }
+  label {
+      font-weight: bold;
+    }
+
+    input {
+      
+      margin-bottom: 8px;
+    }
+  button {
+    margin: 5px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1 id="pageTitle">Mô phỏng Con Lắc Đơn 2D ✨</h1>
+
+<div id="container">
+  <!-- Line Chart bên trái -->
+  <canvas id="lineCanvas" width="400" height="300"></canvas>
+
+  <!-- Mô phỏng con lắc ở giữa -->
+  <canvas id="simCanvas" width="300" height="400"></canvas>
+
+  <!-- Bar Chart bên phải -->
+  <canvas id="barCanvas" width="250" height="250"></canvas>
+</div>
+
+<div id="controls">
+    <h3>⚙️ Thông số con lắc</h3>
+  <label>Khối lượng (kg): <input type="number" id="mass" value="1"></label>
+  <label>Chiều dài (m): <input type="number" id="length" value="1"></label>
+  <label>Ma sát (γ): <input type="number" id="damping" value="0.1" step="0.01"></label>
+  <label>Vận tốc ban đầu (rad/s): <input type="number" id="v0" value="0"></label>
+  <br>
+  <button id="startBtn">🎬 Bắt đầu mô phỏng</button>
+  <button id="restartBtn">🔁 Khởi động lại</button>
+  <button id="normalBtn">⚡ Chuyển động bình thường</button>
+  <button id="slowBtn">🐢 Chuyển động chậm</button>
+</div>
+
+<script>
+const simCanvas = document.getElementById("simCanvas");
+const simCtx = simCanvas.getContext("2d");
+const barCanvas = document.getElementById("barCanvas");
+const barCtx = barCanvas.getContext("2d");
+const lineCanvas = document.getElementById("lineCanvas");
+const lineCtx = lineCanvas.getContext("2d");
+
+// Biến mô phỏng
+let M = 1, L = 1, GAMMA = 0.1, theta = 0.5, omega = 0;
+let dt = 0.02;
+let speedFactor = 1;
+let animationId = null;
+let energyData = [];
+
+// Cập nhật thông số người dùng nhập
+function updateParams(){
+    M = parseFloat(document.getElementById("mass").value);
+    L = parseFloat(document.getElementById("length").value);
+    GAMMA = parseFloat(document.getElementById("damping").value);
+    omega = parseFloat(document.getElementById("v0").value);
+    theta = 0.5;
+    energyData = [];
+}
+
+// Hàm tính năng lượng
+function calculateEnergy(theta, omega){
+    let g = 9.8;
+    let kin = 0.5 * M * Math.pow(L * omega, 2);
+    let pot = M * g * L * (1 - Math.cos(theta));
+    let tot = kin + pot;
+    return { kin, pot, tot };
+}
+
+// Vẽ con lắc
+function drawPendulum(){
+    simCtx.clearRect(0,0,simCanvas.width,simCanvas.height);
+    const originX = simCanvas.width / 2;
+    const originY = 50;
+    const x = originX + L * 150 * Math.sin(theta);
+    const y = originY + L * 150 * Math.cos(theta);
+
+    simCtx.beginPath();
+    simCtx.moveTo(originX, originY);
+    simCtx.lineTo(x, y);
+    simCtx.strokeStyle = "black";
+    simCtx.lineWidth = 2;
+    simCtx.stroke();
+
+    simCtx.beginPath();
+    simCtx.arc(x, y, 15, 0, Math.PI * 2);
+    simCtx.fillStyle = "red";
+    simCtx.fill();
+}
+
+// Bar chart năng lượng
+function drawEnergyBars(){
+    barCtx.clearRect(0,0,barCanvas.width,barCanvas.height);
+    const e = calculateEnergy(theta, omega);
+    const maxEnergy = 2;
+    const maxHeight = 200;
+    const scale = maxHeight / maxEnergy;
+
+    const kinHeight = e.kin * scale;
+    const potHeight = e.pot * scale;
+    const totHeight = e.tot * scale;
+    const barWidth = 30;
+    const baseY = maxHeight + 30;
+
+    // Trục
+    barCtx.strokeStyle = "black";
+    barCtx.lineWidth = 1.5;
+    barCtx.beginPath();
+    barCtx.moveTo(20,20);
+    barCtx.lineTo(20,baseY);
+    barCtx.stroke();
+    barCtx.beginPath();
+    barCtx.moveTo(20,baseY);
+    barCtx.lineTo(240,baseY);
+    barCtx.stroke();
+
+    barCtx.fillStyle = "black";
+    barCtx.font = "14px Arial";
+    barCtx.fillText("E (J)", 0, 15);
+    barCtx.fillText("Động", 30, baseY + 15);
+    barCtx.fillText("Thế", 105, baseY + 15);
+    barCtx.fillText("Cơ", 175, baseY + 15);
+
+    // Gradient bars
+    let kinGrad = barCtx.createLinearGradient(0, baseY - kinHeight, 0, baseY);
+    kinGrad.addColorStop(0, "pink");
+    kinGrad.addColorStop(1, "red");
+    barCtx.fillStyle = kinGrad;
+    barCtx.fillRect(30, baseY - kinHeight, barWidth, kinHeight);
+
+    let potGrad = barCtx.createLinearGradient(0, baseY - potHeight, 0, baseY);
+    potGrad.addColorStop(0, "#a0cfff");
+    potGrad.addColorStop(1, "blue");
+    barCtx.fillStyle = potGrad;
+    barCtx.fillRect(100, baseY - potHeight, barWidth, potHeight);
+
+    let totGrad = barCtx.createLinearGradient(0, baseY - totHeight, 0, baseY);
+    totGrad.addColorStop(0, "#fff8a0");
+    totGrad.addColorStop(1, "gold");
+    barCtx.fillStyle = totGrad;
+    barCtx.fillRect(170, baseY - totHeight, barWidth, totHeight);
+
+    // Giá trị
+    barCtx.fillStyle = "black";
+    barCtx.fillText(e.kin.toFixed(2), 30, baseY - kinHeight - 5);
+    barCtx.fillText(e.pot.toFixed(2), 100, baseY - potHeight - 5);
+    barCtx.fillText(e.tot.toFixed(2), 170, baseY - totHeight - 5);
+}
+
+// Line chart năng lượng
+function drawEnergyLineChart(){
+    lineCtx.clearRect(0,0,lineCanvas.width,lineCanvas.height);
+
+    const maxEnergy = 2;
+    const chartHeight = lineCanvas.height - 40;
+    const chartWidth = lineCanvas.width - 40;
+    const scaleY = chartHeight / maxEnergy;
+    const scaleX = chartWidth / (energyData.length || 1);
+
+    // Trục
+    lineCtx.strokeStyle = "black";
+    lineCtx.lineWidth = 1.5;
+    lineCtx.beginPath();
+    lineCtx.moveTo(30,30);
+    lineCtx.lineTo(30, chartHeight);
+    lineCtx.stroke();
+    lineCtx.beginPath();
+    lineCtx.moveTo(30, chartHeight);
+    lineCtx.lineTo(lineCanvas.width, chartHeight);
+    lineCtx.stroke();
+
+    lineCtx.fillStyle = "black";
+    lineCtx.font = "14px Arial";
+    lineCtx.fillText("E (J)", 0, 25);
+    lineCtx.fillText("Thời gian (s)", chartWidth - 80, chartHeight + 20);
+
+    // Động năng đỏ
+    lineCtx.strokeStyle = "red";
+    lineCtx.beginPath();
+    for(let i=0;i<energyData.length;i++){
+        let x = 30 + i * scaleX;
+        let y = chartHeight - energyData[i].kin * scaleY;
+        if(i===0) lineCtx.moveTo(x,y);
+        else lineCtx.lineTo(x,y);
+    }
+    lineCtx.stroke();
+
+    // Thế năng xanh
+    lineCtx.strokeStyle = "blue";
+    lineCtx.beginPath();
+    for(let i=0;i<energyData.length;i++){
+        let x = 30 + i * scaleX;
+        let y = chartHeight - energyData[i].pot * scaleY;
+        if(i===0) lineCtx.moveTo(x,y);
+        else lineCtx.lineTo(x,y);
+    }
+    lineCtx.stroke();
+
+    // Cơ năng vàng
+    lineCtx.strokeStyle = "gold";
+    lineCtx.beginPath();
+    for(let i=0;i<energyData.length;i++){
+        let x = 30 + i * scaleX;
+        let y = chartHeight - energyData[i].tot * scaleY;
+        if(i===0) lineCtx.moveTo(x,y);
+        else lineCtx.lineTo(x,y);
+    }
+    lineCtx.stroke();
+}
+
+// Hàm mô phỏng
+function animate(){
+    omega += (-9.8/L * Math.sin(theta) - GAMMA * omega) * dt * speedFactor;
+    theta += omega * dt * speedFactor;
+
+    drawPendulum();
+    drawEnergyBars();
+
+    energyData.push(calculateEnergy(theta, omega));
+    if(energyData.length > 100) energyData.shift();
+    drawEnergyLineChart();
+
+    animationId = requestAnimationFrame(animate);
+}
+
+// Nút bấm
+document.getElementById("startBtn").addEventListener("click", ()=>{
+    updateParams();
+    cancelAnimationFrame(animationId);
+    animationId = requestAnimationFrame(animate);
+});
+
+document.getElementById("restartBtn").addEventListener("click", ()=>{
+    cancelAnimationFrame(animationId);
+    updateParams();
+    drawPendulum();
+    drawEnergyBars();
+    drawEnergyLineChart();
+});
+
+document.getElementById("normalBtn").addEventListener("click", ()=> speedFactor = 1);
+document.getElementById("slowBtn").addEventListener("click", ()=> speedFactor = 0.2);
+</script>
+</body>
+</html>

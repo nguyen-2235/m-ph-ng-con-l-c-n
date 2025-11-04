@@ -1,0 +1,49 @@
+body{
+    background-image: url("img_nen-powerpoint-vat-ly-1.jpg");
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: cover;
+}
+#controls{
+    background: linear-gradient(to bottom, skyblue, lightgreen);
+    background-repeat: no-repeat;
+    
+    
+    padding: 10px;
+}
+#lineCanvas{
+    background: linear-gradient( deepskyblue, grey, ghostwhite);}
+#simCanvas{
+    background: linear-gradient( deepskyblue, grey, ghostwhite);}
+#barCanvas{
+    background: linear-gradient( deepskyblue, grey, ghostwhite);
+}#pageTitle {
+  margin-top: 15px;   /* cách mép trên */
+  margin-bottom: 10px; /* cách banner một chút */
+  text-align: center;
+}
+button {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #00bfff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+#energyCanvas {
+  border: 2px solid #fff;
+  border-radius: 8px;
+  margin-top: 20px;
+  background: linear-gradient( deepskyblue, grey, ghostwhite) ;
+}
+#startBtn{
+    background-color: #0099cc;
+    
+}
+#slowBtn{
+    background-color: #4caf50;
+}
